@@ -4,43 +4,42 @@ import captcha_setting
 
 
 def encode(text):
-    vector = np.zeros(captcha_setting.ALL_CHAR_SET_LEN * captcha_setting.MAX_CAPTCHA, dtype=float)
-    def char2pos(c):
-        if c =='_':
-            k = 62
-            return k
-        k = ord(c)-48
-        if k > 9:
-            k = ord(c) - 65 + 10
-            if k > 35:
-                k = ord(c) - 97 + 26 + 10
-                if k > 61:
-                    raise ValueError('error')
-        return k
+    # 动态获取长度，确保永远是 4 * 58 = 232
+    char_set_len = captcha_setting.ALL_CHAR_SET_LEN
+    max_captcha = captcha_setting.MAX_CAPTCHA
+    vector = np.zeros(char_set_len * max_captcha, dtype=float)
+
     for i, c in enumerate(text):
-        idx = i * captcha_setting.ALL_CHAR_SET_LEN + char2pos(c)
-        vector[idx] = 1.0
+        try:
+            # 直接去配置文件的列表中找字符对应的下标
+            # 这样 'a' 对应的下标就是它在 ALL_CHAR_SET 里的位置，不会越界
+            idx = i * char_set_len + captcha_setting.ALL_CHAR_SET.index(c)
+            vector[idx] = 1.0
+        except ValueError:
+            # 如果图片文件名里包含了你没定义的字符，会报错提醒
+            raise ValueError(f"错误：字符 '{c}' 不在 captcha_setting.ALL_CHAR_SET 定义的列表中！")
     return vector
 
+
 def decode(vec):
-    char_pos = vec.nonzero()[0]
-    text=[]
-    for i, c in enumerate(char_pos):
-        char_at_pos = i #c/63
-        char_idx = c % captcha_setting.ALL_CHAR_SET_LEN
-        if char_idx < 10:
-            char_code = char_idx + ord('0')
-        elif char_idx <36:
-            char_code = char_idx - 10 + ord('A')
-        elif char_idx < 62:
-            char_code = char_idx - 36 + ord('a')
-        elif char_idx == 62:
-            char_code = ord('_')
-        else:
-            raise ValueError('error')
-        text.append(chr(char_code))
+    char_set_len = captcha_setting.ALL_CHAR_SET_LEN
+    # 将一维向量转回二维矩阵 (4, 58)
+    vec = vec.reshape(captcha_setting.MAX_CAPTCHA, char_set_len)
+    text = []
+    for row in vec:
+        # 找到每一行概率最大的索引
+        idx = np.argmax(row)
+        text.append(captcha_setting.ALL_CHAR_SET[idx])
     return "".join(text)
 
+
 if __name__ == '__main__':
-    e = encode("BK7H")
-    print(decode(e))
+    # 测试一下
+    # 注意：确保 "BK7H" 里的每个字母都在你的 captcha_setting.ALL_CHAR_SET 里
+    test_str = "BK7H"
+    try:
+        e = encode(test_str)
+        print(f"编码成功，向量长度: {len(e)}")
+        print(f"解码结果: {decode(e)}")
+    except Exception as err:
+        print(err)

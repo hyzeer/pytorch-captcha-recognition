@@ -11,7 +11,10 @@ batch_size = 100
 learning_rate = 0.001
 
 def main():
-    cnn = CNN()
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    print(f'Using device: {device}')
+
+    cnn = CNN().to(device)
     cnn.train()
     print('init net')
     criterion = nn.MultiLabelSoftMarginLoss()
@@ -21,8 +24,8 @@ def main():
     train_dataloader = my_dataset.get_train_data_loader()
     for epoch in range(num_epochs):
         for i, (images, labels) in enumerate(train_dataloader):
-            images = Variable(images)
-            labels = Variable(labels.float())
+            images = Variable(images).to(device)
+            labels = Variable(labels.float()).to(device)
             predict_labels = cnn(images)
             # print(predict_labels.type)
             # print(labels.type)
